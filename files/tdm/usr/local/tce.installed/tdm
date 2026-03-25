@@ -16,6 +16,10 @@ sed -ibak -e 's/^waitforX.*/waitforX \|\| exit/g' /home/tc/.xsession
 # include tdm_help with .profile file
 echo /usr/bin/tdm_help >> /home/tc/.profile
 
+# load hid-apple driver with fnmode=2 so F1-F12 act as standard function keys
+# (|| true guards against built-in module case where modprobe has nothing to load)
+modprobe hid-apple fnmode=2 2>/dev/null || true
+
 killall -HUP init
 
 /etc/init.d/services/tdm start
