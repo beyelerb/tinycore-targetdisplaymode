@@ -1,6 +1,6 @@
-FROM tatsushid/tinycore
+FROM linichotmailca/tcl-core-x86:latest
 
-ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/13.x/x86/release/TinyCore-current.iso}"
+ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86/release/TinyCore-17.0.iso}"
 
 # in relation to issue #3,
 # try to capture error state while running tce-load command
