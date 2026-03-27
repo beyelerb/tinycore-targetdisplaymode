@@ -65,8 +65,8 @@ cpupower.tcz
 EOF
 
 
-# acquire hid-apple module from TinyCore's modules archive
-printf "## STAGE 4b: Acquire hid-apple module\n"
+# acquire Apple HID modules from TinyCore's modules archive
+printf "## STAGE 4b: Acquire Apple HID modules\n"
 
 TC_MODULES_URL="$(dirname ${TC_ISO_URL})/distribution_files/modules.gz"
 HID_EXTRACT_DIR=/tmp/hid-apple-extract
@@ -75,31 +75,35 @@ HID_PKG_DIR=/tmp/hid-apple-pkg
 printf "Downloading modules archive from ${TC_MODULES_URL}...\n"
 wget -q "${TC_MODULES_URL}" -O /tmp/modules.gz
 
-# find the exact path of hid-apple.ko.gz within the cpio archive
-HID_KO_PATH=$(zcat /tmp/modules.gz | cpio -t 2>/dev/null | grep "hid-apple\.ko\.gz$")
-[ -n "${HID_KO_PATH}" ] || { printf "ERROR: hid-apple.ko.gz not found in modules archive\n"; exit 1; }
-printf "Found: ${HID_KO_PATH}\n"
-
-# extract just that file
 mkdir -p ${HID_EXTRACT_DIR}
-cd ${HID_EXTRACT_DIR}
-zcat /tmp/modules.gz | cpio -idm "${HID_KO_PATH}" 2>/dev/null
-cd ${build_dir}
+mkdir -p ${HID_PKG_DIR}
 
-# decompress .ko.gz -> .ko
-gunzip "${HID_EXTRACT_DIR}/${HID_KO_PATH}"
-HID_KO="${HID_EXTRACT_DIR}/${HID_KO_PATH%.gz}"
+# extract hid-apple.ko.gz and hid-appleir.ko.gz from the cpio archive
+for module in hid-apple hid-appleir; do
+    HID_KO_PATH=$(zcat /tmp/modules.gz | cpio -t 2>/dev/null | grep "${module}\.ko\.gz$")
+    [ -n "${HID_KO_PATH}" ] || { printf "ERROR: ${module}.ko.gz not found in modules archive\n"; exit 1; }
+    printf "Found: ${HID_KO_PATH}\n"
 
-# derive kernel version from the archive path
-TC_KVER=$(echo "${HID_KO_PATH}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-tinycore[0-9]*')
+    cd ${HID_EXTRACT_DIR}
+    zcat /tmp/modules.gz | cpio -idm "${HID_KO_PATH}" 2>/dev/null
+    cd ${build_dir}
+
+    gunzip "${HID_EXTRACT_DIR}/${HID_KO_PATH}"
+done
+
+# derive kernel version from the archive path (same for all modules)
+TC_KVER=$(zcat /tmp/modules.gz | cpio -t 2>/dev/null | grep "hid-apple\.ko\.gz$" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-tinycore[0-9]*')
 printf "TinyCore kernel version: ${TC_KVER}\n"
 
-# package as hid-apple.tcz
+# package both modules into a single hid-apple.tcz
 mkdir -p ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid
-cp "${HID_KO}" ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
+cp ${HID_EXTRACT_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/hid-apple.ko \
+   ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
+cp ${HID_EXTRACT_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/hid-appleir.ko \
+   ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
 mksquashfs ${HID_PKG_DIR} ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
 echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
-printf "hid-apple.tcz packaged successfully\n"
+printf "hid-apple.tcz packaged successfully (hid-apple + hid-appleir)\n"
 
 
 # assemble the output files
