@@ -65,69 +65,41 @@ cpupower.tcz
 EOF
 
 
-# probe and acquire hid-apple module for proper Apple keyboard support
+# acquire hid-apple module from TinyCore's modules archive
 printf "## STAGE 4b: Acquire hid-apple module\n"
 
-KERNEL_VER=$(uname -r)
-HID_APPLE_FOUND=0
+TC_MODULES_URL="$(dirname ${TC_ISO_URL})/distribution_files/modules.gz"
+HID_EXTRACT_DIR=/tmp/hid-apple-extract
+HID_PKG_DIR=/tmp/hid-apple-pkg
 
-# Step 1: check if hid-apple is already available in the running kernel (built-in)
-if modinfo hid-apple > /dev/null 2>&1; then
-    printf "hid-apple already available in kernel ${KERNEL_VER} -- no package needed\n"
-    HID_APPLE_FOUND=1
-fi
+printf "Downloading modules archive from ${TC_MODULES_URL}...\n"
+wget -q "${TC_MODULES_URL}" -O /tmp/modules.gz
 
-# Step 2: try downloading a hid-apple package from TinyCore extension repository
-if [ "${HID_APPLE_FOUND}" -eq 0 ]; then
-    for pkg in hid-apple hid_apple hid-modules; do
-        printf "Trying package: ${pkg}...\n"
-        if sudo -u tc tce-load -w ${pkg} 2>/dev/null; then
-            if find /tmp/tce/optional -name "${pkg}.tcz" | grep -q .; then
-                cp /tmp/tce/optional/${pkg}.tcz \
-                   ${tinycore_dir}/Core-current/cde/optional/
-                echo "${pkg}.tcz" >> \
-                   ${tinycore_dir}/Core-current/cde/onboot.lst
-                HID_APPLE_FOUND=1
-                printf "Found hid-apple via package: ${pkg}.tcz\n"
-                break
-            fi
-        fi
-    done
-fi
+# find the exact path of hid-apple.ko.gz within the cpio archive
+HID_KO_PATH=$(zcat /tmp/modules.gz | cpio -t 2>/dev/null | grep "hid-apple\.ko\.gz$")
+[ -n "${HID_KO_PATH}" ] || { printf "ERROR: hid-apple.ko.gz not found in modules archive\n"; exit 1; }
+printf "Found: ${HID_KO_PATH}\n"
 
-# Step 3: fallback -- build a custom hid-apple.tcz by extracting from the kernel HID package
-if [ "${HID_APPLE_FOUND}" -eq 0 ]; then
-    printf "Attempting fallback: custom hid-apple.tcz from kernel HID package...\n"
-    for hid_pkg in "kernel-hid" "kernel-hid-${KERNEL_VER}" "kernel-drivers-hid"; do
-        printf "Trying HID package: ${hid_pkg}...\n"
-        if sudo -u tc tce-load -w ${hid_pkg} 2>/dev/null && \
-           find /tmp/tce/optional -name "${hid_pkg}.tcz" | grep -q .; then
-            HID_EXTRACT_DIR=/tmp/hid-apple-extract
-            mkdir -p ${HID_EXTRACT_DIR}
-            if unsquashfs -dest ${HID_EXTRACT_DIR} \
-               /tmp/tce/optional/${hid_pkg}.tcz \
-               "*/hid-apple.ko*" 2>/dev/null; then
-                if find ${HID_EXTRACT_DIR} -name "hid-apple.ko*" | grep -q .; then
-                    mksquashfs ${HID_EXTRACT_DIR} \
-                        ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
-                    echo "hid-apple.tcz" >> \
-                        ${tinycore_dir}/Core-current/cde/onboot.lst
-                    HID_APPLE_FOUND=1
-                    printf "Built custom hid-apple.tcz from ${hid_pkg}\n"
-                    break
-                fi
-            fi
-            rm -rf ${HID_EXTRACT_DIR}
-        fi
-    done
-fi
+# extract just that file
+mkdir -p ${HID_EXTRACT_DIR}
+cd ${HID_EXTRACT_DIR}
+zcat /tmp/modules.gz | cpio -idm "${HID_KO_PATH}" 2>/dev/null
+cd ${build_dir}
 
-# fail hard if module could not be obtained by any path
-if [ "${HID_APPLE_FOUND}" -eq 0 ]; then
-    printf "ERROR: Could not obtain hid-apple module for kernel ${KERNEL_VER}\n"
-    printf "  Tried: built-in probe, tce packages (hid-apple, hid_apple, hid-modules), kernel HID packages\n"
-    exit 1
-fi
+# decompress .ko.gz -> .ko
+gunzip "${HID_EXTRACT_DIR}/${HID_KO_PATH}"
+HID_KO="${HID_EXTRACT_DIR}/${HID_KO_PATH%.gz}"
+
+# derive kernel version from the archive path
+TC_KVER=$(echo "${HID_KO_PATH}" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-tinycore[0-9]*')
+printf "TinyCore kernel version: ${TC_KVER}\n"
+
+# package as hid-apple.tcz
+mkdir -p ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid
+cp "${HID_KO}" ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
+mksquashfs ${HID_PKG_DIR} ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
+echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
+printf "hid-apple.tcz packaged successfully\n"
 
 
 # assemble the output files
