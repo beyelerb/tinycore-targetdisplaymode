@@ -101,6 +101,9 @@ cp ${HID_EXTRACT_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/hid-apple.ko \
    ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
 cp ${HID_EXTRACT_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/hid-appleir.ko \
    ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
+# include modprobe.d config so fnmode=2 is set whenever hid-apple loads
+mkdir -p ${HID_PKG_DIR}/etc/modprobe.d
+echo "options hid-apple fnmode=2" > ${HID_PKG_DIR}/etc/modprobe.d/hid-apple.conf
 mksquashfs ${HID_PKG_DIR} ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
 echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
 printf "hid-apple.tcz packaged successfully (hid-apple + hid-appleir)\n"

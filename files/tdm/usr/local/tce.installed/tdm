@@ -19,6 +19,8 @@ echo /usr/bin/tdm_help >> /home/tc/.profile
 # load Apple HID drivers for wired and wireless keyboard support
 modprobe hid-apple fnmode=2 2>/dev/null || true
 modprobe hid-appleir 2>/dev/null || true
+# force fnmode=2 in case hid-apple was auto-loaded by udev before this hook ran
+echo 2 > /sys/module/hid_apple/parameters/fnmode 2>/dev/null || true
 
 killall -HUP init
 
