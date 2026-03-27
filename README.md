@@ -46,7 +46,8 @@ The bootable image is extended in the following ways:
    * `/etc/init.d/services/tdm` as an init-style script, which accepts `start|stop|restart` keywords
    * `/usr/bin/tdm_on`, `/usr/bin/tdm_off` and `/usr/bin/tdm_toggle`, which can be used for turning Target Display Mode on/off or toggling it between states.
  * an automated startup trigger is installed at `/usr/local/tce.installed/tdm`, to switch Target Display Mode automatically on
- * `/etc/inittab` is modified to run `tdm_toggle`, `tdm_on` and `tdm_off` and `tdm_shutdown` scripts via the virtual terminals 2-5 (see also hot keys, further below) 
+ * `/etc/inittab` is modified to run `tdm_toggle`, `tdm_on` and `tdm_off` and `tdm_shutdown` scripts via the virtual terminals 2-5 (see also hot keys, further below)
+ * the `hid-apple` kernel module is loaded at boot with `fnmode=2`, ensuring Apple keyboards are properly recognized and F1–F12 act as standard function keys
 
 
 ## Staging a Docker container as a Build Environment
@@ -427,6 +428,16 @@ and your host system's kernel is in fact too old.
 
 Please update to a newer kernel version on your host machine.
 
+
+### Apple Keyboard Not Working / Keys Mapping Incorrectly
+
+Apple keyboards (wired USB and via USB receiver) require the `hid-apple` kernel driver to function correctly. Without it, the kernel falls back to `hid-generic`, which causes F-keys to behave as media/brightness keys and the Fn key to have no effect.
+
+The build automatically acquires and loads the `hid-apple` module at boot with `fnmode=2`. With this setting:
+- F1–F12 act as standard function keys by default
+- Hold Fn while pressing F1–F12 to get media/brightness behaviour
+
+If after booting your keyboard is still not working correctly, check that `hid-apple.tcz` was included in the build output and that `lsmod | grep hid_apple` shows the module loaded.
 
 ### How to control the brightness of the iMac running in Target Display Mode
 

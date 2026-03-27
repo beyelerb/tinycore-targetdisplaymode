@@ -65,6 +65,50 @@ cpupower.tcz
 EOF
 
 
+# acquire Apple HID modules from TinyCore's modules archive
+printf "## STAGE 4b: Acquire Apple HID modules\n"
+
+TC_MODULES_URL="$(dirname ${TC_ISO_URL})/distribution_files/modules.gz"
+HID_EXTRACT_DIR=/tmp/hid-apple-extract
+HID_PKG_DIR=/tmp/hid-apple-pkg
+
+printf "Downloading modules archive from ${TC_MODULES_URL}...\n"
+wget -q "${TC_MODULES_URL}" -O /tmp/modules.gz
+
+mkdir -p ${HID_EXTRACT_DIR}
+mkdir -p ${HID_PKG_DIR}
+
+# extract hid-apple.ko.gz and hid-appleir.ko.gz from the cpio archive
+for module in hid-apple hid-appleir; do
+    HID_KO_PATH=$(zcat /tmp/modules.gz | cpio -t 2>/dev/null | grep "${module}\.ko\.gz$")
+    [ -n "${HID_KO_PATH}" ] || { printf "ERROR: ${module}.ko.gz not found in modules archive\n"; exit 1; }
+    printf "Found: ${HID_KO_PATH}\n"
+
+    cd ${HID_EXTRACT_DIR}
+    zcat /tmp/modules.gz | cpio -idm "${HID_KO_PATH}" 2>/dev/null
+    cd ${build_dir}
+
+    gunzip "${HID_EXTRACT_DIR}/${HID_KO_PATH}"
+done
+
+# derive kernel version from the archive path (same for all modules)
+TC_KVER=$(zcat /tmp/modules.gz | cpio -t 2>/dev/null | grep "hid-apple\.ko\.gz$" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+-tinycore[0-9]*')
+printf "TinyCore kernel version: ${TC_KVER}\n"
+
+# package both modules into a single hid-apple.tcz
+mkdir -p ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid
+cp ${HID_EXTRACT_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/hid-apple.ko \
+   ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
+cp ${HID_EXTRACT_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/hid-appleir.ko \
+   ${HID_PKG_DIR}/lib/modules/${TC_KVER}/kernel/drivers/hid/
+# include modprobe.d config so fnmode=2 is set whenever hid-apple loads
+mkdir -p ${HID_PKG_DIR}/etc/modprobe.d
+echo "options hid-apple fnmode=2" > ${HID_PKG_DIR}/etc/modprobe.d/hid-apple.conf
+mksquashfs ${HID_PKG_DIR} ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
+echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
+printf "hid-apple.tcz packaged successfully (hid-apple + hid-appleir)\n"
+
+
 # assemble the output files
 printf "## STAGE 5: assemble output files\n"
 printf ">> pre cleanup\n"
