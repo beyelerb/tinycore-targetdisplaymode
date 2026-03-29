@@ -23,7 +23,7 @@ wget -q --show-progress "${ROOTFS_URL}" -O "${ROOTFS_FILE}"
 echo "==> Extracting cpio archive..."
 rm -rf "${EXTRACT_DIR}"
 mkdir -p "${EXTRACT_DIR}"
-cd "${EXTRACT_DIR}" && zcat "${ROOTFS_FILE}" | cpio -idm 2>/dev/null
+cd "${EXTRACT_DIR}" && gzip -dc "${ROOTFS_FILE}" | cpio -idm 2>/dev/null
 cd - >/dev/null
 
 echo "==> Importing into Docker as ${IMAGE_TAG}..."
