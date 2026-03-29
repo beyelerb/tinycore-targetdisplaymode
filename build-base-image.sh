@@ -10,7 +10,7 @@ set -e
 
 VERSION="${1:-17.0}"
 MAJOR="${VERSION%%.*}"
-IMAGE_TAG="tcl-core-x86_64:${VERSION}"
+IMAGE_TAG="localhost/tcl-core-x86_64:${VERSION}"
 ROOTFS_URL="http://tinycorelinux.net/${MAJOR}.x/x86_64/release/distribution_files/rootfs64.gz"
 ROOTFS_FILE="/tmp/rootfs64-${VERSION}.gz"
 EXTRACT_DIR="/tmp/tc-rootfs-${VERSION}"

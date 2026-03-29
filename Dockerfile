@@ -1,4 +1,4 @@
-FROM tcl-core-x86_64:17.0
+FROM localhost/tcl-core-x86_64:17.0
 
 ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso}"
 
