@@ -16,6 +16,7 @@ BASE_URL="http://tinycorelinux.net/${MAJOR}.x/x86_64/release/distribution_files"
 ROOTFS_FILE="/tmp/rootfs64-${VERSION}.gz"
 COREPURE_FILE="/tmp/corepure64-${VERSION}.gz"
 EXTRACT_DIR="/tmp/tc-rootfs-${VERSION}"
+PKGS_DIR="/tmp/tc-packages-${VERSION}"
 
 echo "==> Building Docker base image ${IMAGE_TAG}"
 
@@ -37,47 +38,51 @@ echo "==> Importing rootfs as ${INIT_TAG}..."
 chmod -R u+r "${EXTRACT_DIR}"
 tar -C "${EXTRACT_DIR}" -c . | docker import - "${INIT_TAG}"
 
-echo "==> Pre-installing build packages via privileged container..."
-echo "    (bash, libisoburn, git, gcc, compiletc + dependencies)"
-CID=$(docker run -d --privileged "${INIT_TAG}" /bin/sh -c 'sleep 3600')
+# Download packages using tce-load (only -w/download works without squashfs mount support)
+echo "==> Downloading build packages via TinyCore tce-load..."
+echo "    (bash, libisoburn, git, gcc, compiletc + all dependencies)"
+mkdir -p "${PKGS_DIR}"
+CID=$(docker run -d --privileged \
+    -v "${PKGS_DIR}:/pkgs" \
+    "${INIT_TAG}" /bin/sh -c 'sleep 3600')
 
-# Fix permissions and set up TinyCore runtime environment
 docker exec "${CID}" /bin/sh -c '
 set -e
 chown 0:0 /etc/sudoers
 chmod u+s /usr/bin/sudo
-mkdir -p /tmp/tce/optional /home/tc /usr/local/tce.installed /etc/sysconfig /mnt/tcz
+mkdir -p /tmp/tce/optional /home/tc /etc/sysconfig
 chown -R tc:staff /tmp/tce /home/tc
 ln -sf /tmp/tce /etc/sysconfig/tcedir
 echo "http://tinycorelinux.net" > /opt/tcemirror
 '
-
-# Download packages and their dependencies as tc user
 docker exec -u tc "${CID}" /bin/sh -c '
 tce-load -w bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz
 '
-
-# Mount each squashfs package and copy its contents into the filesystem
-docker exec "${CID}" /bin/sh -c '
-for pkg in /tmp/tce/optional/*.tcz; do
-    name=$(basename "$pkg")
-    if mount -t squashfs -o loop,ro "$pkg" /mnt/tcz 2>/dev/null; then
-        cp -a /mnt/tcz/. / 2>/dev/null || true
-        umount /mnt/tcz
-        echo "  installed $name"
-    else
-        echo "  WARNING: could not mount $name, skipping"
-    fi
-done
-rm -rf /tmp/tce/optional/
-'
-
-echo "==> Committing image as ${IMAGE_TAG}..."
-docker commit "${CID}" "${IMAGE_TAG}"
+docker exec "${CID}" /bin/sh -c 'cp /tmp/tce/optional/*.tcz /pkgs/'
 docker rm -f "${CID}"
 docker rmi "${INIT_TAG}" 2>/dev/null || true
 
+# Extract packages into rootfs using Alpine's unsquashfs
+echo "==> Extracting packages into rootfs via Alpine unsquashfs..."
+docker run --rm \
+    -v "${PKGS_DIR}:/pkgs:ro" \
+    -v "${EXTRACT_DIR}:/rootfs" \
+    alpine:latest /bin/sh -c '
+        apk add -q squashfs-tools 2>/dev/null
+        for pkg in /pkgs/*.tcz; do
+            printf "  extracting %s\n" "$(basename $pkg)"
+            unsquashfs -f -d /rootfs "$pkg" > /dev/null 2>&1 || true
+        done
+        find /rootfs -not -readable -exec chmod a+r {} \; 2>/dev/null || true
+    '
+
+# Make all files readable from the macOS host before tarring
+chmod -R u+r "${EXTRACT_DIR}" 2>/dev/null || true
+
+echo "==> Importing combined rootfs as ${IMAGE_TAG}..."
+tar -C "${EXTRACT_DIR}" -c . | docker import - "${IMAGE_TAG}"
+
 echo "==> Cleaning up..."
-rm -rf "${EXTRACT_DIR}" "${ROOTFS_FILE}" "${COREPURE_FILE}"
+rm -rf "${EXTRACT_DIR}" "${ROOTFS_FILE}" "${COREPURE_FILE}" "${PKGS_DIR}"
 
 echo "==> Done. Base image ${IMAGE_TAG} is ready."
