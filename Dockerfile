@@ -5,7 +5,7 @@ ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86_64/release/T
 # in relation to issue #3,
 # try to capture error state while running tce-load command
 RUN set -o pipefail && \
-    tce-load -wic bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz ; echo $?
+    sudo -u tc tce-load -wic bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz ; echo $?
 
 # get rid of pre-registered packages
 RUN rm -rf /tmp/tce/optional/*
