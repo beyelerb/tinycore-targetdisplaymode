@@ -12,8 +12,9 @@ RUN mkdir -p /tmp/tce/optional /home/tc && \
 
 # in relation to issue #3,
 # try to capture error state while running tce-load command
-RUN set -o pipefail && \
-    sudo -u tc tce-load -wic bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz ; echo $?
+USER tc
+RUN tce-load -wic bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz
+USER root
 
 # get rid of pre-registered packages
 RUN rm -rf /tmp/tce/optional/*
