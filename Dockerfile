@@ -5,10 +5,11 @@ ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86_64/release/T
 # fix sudoers ownership: cpio extraction on non-root hosts leaves it owned by the build user
 RUN chown 0:0 /etc/sudoers
 
-# create runtime directories that TinyCore's init normally sets up at boot
-RUN mkdir -p /tmp/tce/optional /home/tc && \
+# create runtime directories and config that TinyCore's init normally sets up at boot
+RUN mkdir -p /tmp/tce/optional /home/tc /usr/local/tce.installed /etc/sysconfig && \
     chown -R tc:staff /tmp/tce /home/tc && \
-    echo "http://tinycorelinux.net" > /opt/tcemirror
+    echo "http://tinycorelinux.net" > /opt/tcemirror && \
+    ln -sf /tmp/tce /etc/sysconfig/tcedir
 
 # in relation to issue #3,
 # try to capture error state while running tce-load command
