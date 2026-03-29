@@ -2,8 +2,10 @@ FROM localhost/tcl-core-x86_64:17.0
 
 ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso}"
 
-# fix sudoers ownership: cpio extraction on non-root hosts leaves it owned by the build user
-RUN chown 0:0 /etc/sudoers
+# fix permissions lost during cpio extraction by non-root user:
+# - sudoers must be owned by root
+# - sudo binary must have setuid bit
+RUN chown 0:0 /etc/sudoers && chmod u+s /usr/bin/sudo
 
 # create runtime directories and config that TinyCore's init normally sets up at boot
 RUN mkdir -p /tmp/tce/optional /home/tc /usr/local/tce.installed /etc/sysconfig && \
