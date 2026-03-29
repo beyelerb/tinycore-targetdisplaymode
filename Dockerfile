@@ -2,6 +2,9 @@ FROM localhost/tcl-core-x86_64:17.0
 
 ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso}"
 
+# fix sudoers ownership: cpio extraction on non-root hosts leaves it owned by the build user
+RUN chown 0:0 /etc/sudoers
+
 # in relation to issue #3,
 # try to capture error state while running tce-load command
 RUN set -o pipefail && \
