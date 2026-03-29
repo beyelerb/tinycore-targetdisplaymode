@@ -33,6 +33,7 @@ gzip -dc "${COREPURE_FILE}" | cpio -idm 2>/dev/null
 cd - >/dev/null
 
 echo "==> Importing into Docker as ${IMAGE_TAG}..."
+chmod -R u+r "${EXTRACT_DIR}"
 tar -C "${EXTRACT_DIR}" -c . | docker import - "${IMAGE_TAG}"
 
 echo "==> Cleaning up..."
