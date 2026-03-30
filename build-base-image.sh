@@ -90,6 +90,7 @@ docker run --rm "${EXTRACTOR_TAG}" tar -C /rootfs -c . \
     | tar -C "${MERGED_DIR}" -x 2>/dev/null || true
 docker rmi "${EXTRACTOR_TAG}" 2>/dev/null || true
 
+find "${MERGED_DIR}" -name "._*" -delete 2>/dev/null || true
 chmod -R u+r "${MERGED_DIR}" 2>/dev/null || true
 
 echo "==> Importing combined rootfs as ${IMAGE_TAG}..."

@@ -16,9 +16,10 @@ RUN chown 0:0 /etc/sudoers && \
     ldconfig 2>/dev/null || true && \
     ln -sf /usr/local/bin/bash /bin/bash && \
     for s in /usr/local/tce.installed/*; do [ -x "$s" ] && "$s" 2>/dev/null || true; done && \
+    find / -name "._*" -delete 2>/dev/null || true && \
     mkdir -p /usr/local/etc/ssl/certs && \
-    find /usr/local/share/ca-certificates -name "*.crt" 2>/dev/null \
-        | xargs cat > /usr/local/etc/ssl/certs/ca-certificates.crt && \
+    find /usr/local/share/ca-certificates -name "*.crt" -not -name "._*" 2>/dev/null \
+        | sort | xargs cat > /usr/local/etc/ssl/certs/ca-certificates.crt && \
     chmod 644 /usr/local/etc/ssl/certs/ca-certificates.crt
 
 # Verify build tools pre-installed by build-base-image.sh are accessible
