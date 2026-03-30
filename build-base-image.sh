@@ -55,7 +55,7 @@ ln -sf /tmp/tce /etc/sysconfig/tcedir
 echo "http://tinycorelinux.net" > /opt/tcemirror
 '
 docker exec -u tc "${CID}" /bin/sh -c '
-tce-load -w bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz
+tce-load -w bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz squashfs-tools.tcz
 '
 # Use docker cp instead of volume mount write (volume writes silently fail on macOS/Podman)
 docker cp "${CID}:/tmp/tce/optional/." "${PKGS_DIR}/"
