@@ -1,20 +1,34 @@
-FROM linichotmailca/tcl-core-x86:latest
+FROM localhost/tcl-core-x86_64:17.0
 
-ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86/release/TinyCore-17.0.iso}"
+ENV TC_ISO_URL="${TC_ISO_URL:-http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso}"
 
-# in relation to issue #3,
-# try to capture error state while running tce-load command
-RUN set -o pipefail && \
-    tce-load -wic bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz ; echo $?
+# TinyCore installs libs to /usr/local/lib; rebuild linker cache so packages
+# extracted via unsquashfs (not mounted via squashfs union) are found at runtime
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
-# get rid of pre-registered packages
-RUN rm -rf /tmp/tce/optional/*
+# Set up TinyCore runtime environment needed by build.sh (tce-load for cpupower, sudo calls)
+RUN chown 0:0 /etc/sudoers && \
+    chmod u+s /usr/bin/sudo && \
+    mkdir -p /tmp/tce/optional /home/tc /usr/local/tce.installed /etc/sysconfig && \
+    chown -R tc:staff /tmp/tce /home/tc && \
+    echo "http://tinycorelinux.net" > /opt/tcemirror && \
+    ln -sf /tmp/tce /etc/sysconfig/tcedir && \
+    ldconfig 2>/dev/null || true && \
+    ln -sf /usr/local/bin/bash /bin/bash && \
+    for s in /usr/local/tce.installed/*; do [ -x "$s" ] && "$s" 2>/dev/null || true; done && \
+    find / -name "._*" -delete 2>/dev/null || true && \
+    mkdir -p /usr/local/etc/ssl/certs && \
+    find /usr/local/share/ca-certificates -name "*.crt" -not -name "._*" 2>/dev/null \
+        | sort | xargs cat > /usr/local/etc/ssl/certs/ca-certificates.crt && \
+    chmod 644 /usr/local/etc/ssl/certs/ca-certificates.crt
 
-# also in relation to #3,
-# double-check via tce-status if given packages are actually installed
-RUN tce-status -i | grep -Ee '^(bash|libisoburn|git|gcc|compiletc)$'
+# Verify build tools pre-installed by build-base-image.sh are accessible
+RUN bash --version > /dev/null && \
+    xorriso --version > /dev/null 2>&1 && \
+    git --version > /dev/null && \
+    gcc --version > /dev/null
 
-ADD files /tmp/build 
+ADD files /tmp/build
 
 USER root:root
 ENTRYPOINT /tmp/build/build.sh

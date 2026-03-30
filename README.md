@@ -54,13 +54,23 @@ The bootable image is extended in the following ways:
 
 I based this off Docker, to stage the build environment for the Tiny Core Linux extension inside a container environment.
 
-Start as follows:
- 
+### Prerequisites: Build the local base image (one-time step)
+
+The build environment uses a local x86_64 TinyCorePure64 Docker image that you create once from TinyCore's published `rootfs64.gz`. This step must be repeated when upgrading to a new TinyCore version.
+
 ```
 git clone https://github.com/gpdm/tinycore-targetdisplaymode.git
-cd tinycore-targetdisplaymode 
+cd tinycore-targetdisplaymode
+./build-base-image.sh
+```
+
+This downloads `rootfs64.gz` from tinycorelinux.net, extracts it, and imports it into Docker as `tcl-core-x86_64:17.0`. To build a different version, pass the version as an argument: `./build-base-image.sh 18.0`.
+
+### Build the container image
+
+```
 sudo docker build . -t tcbuild
-``` 
+```
 
 
 ## Run the build inside the container
@@ -99,18 +109,13 @@ output/boot-isos/Core-remastered.iso
 
 ## Run the build with a different TinyCore ISO file
 
-By default, `http://tinycorelinux.net/13.x/x86/release/TinyCore-current.iso` is downloaded as the most
-compact version of TinyCore Linux, which weights only some ~20 MiB.
+By default, `http://tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso` is downloaded.
 
-You may of course use a different release, or a different image.
-For this purpose, the container supports `TC_ISO_URL` environment variable,
-which will be processed by the `build.sh` script.
-
-If you want to use the more generous Tiny Core Plus image, you could specify it like this:
+You may use a different release by passing a `TC_ISO_URL` environment variable:
 
 ```
 sudo docker run -it --rm -v `pwd`/output:/tmp/output \
-	-e TC_ISO_URL=http://www.tinycorelinux.net/13.x/x86/release/CorePlus-current.iso \
+	-e TC_ISO_URL=http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso \
 	tcbuild
 ```
 
