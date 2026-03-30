@@ -80,7 +80,7 @@ RUN mkdir -p /rootfs && \
 DOCKERFILE
 
 echo "==> Building extractor image (Alpine + packages)..."
-docker build -q -t "${EXTRACTOR_TAG}" "${PKGS_DIR}/"
+docker build -q --load -t "${EXTRACTOR_TAG}" "${PKGS_DIR}/"
 
 # Merge: start from the basic rootfs, then overlay extracted package files.
 echo "==> Merging rootfs with extracted packages..."
