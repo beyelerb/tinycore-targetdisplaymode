@@ -15,7 +15,8 @@ RUN chown 0:0 /etc/sudoers && \
     ln -sf /tmp/tce /etc/sysconfig/tcedir && \
     ldconfig 2>/dev/null || true && \
     ln -sf /usr/local/bin/bash /bin/bash && \
-    for s in /usr/local/tce.installed/*; do [ -x "$s" ] && "$s" 2>/dev/null || true; done
+    for s in /usr/local/tce.installed/*; do [ -x "$s" ] && "$s" 2>/dev/null || true; done && \
+    git config --global http.sslVerify false
 
 # Verify build tools pre-installed by build-base-image.sh are accessible
 RUN bash --version > /dev/null && \
