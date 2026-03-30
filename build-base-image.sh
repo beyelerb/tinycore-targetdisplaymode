@@ -17,6 +17,7 @@ ROOTFS_FILE="/tmp/rootfs64-${VERSION}.gz"
 COREPURE_FILE="/tmp/corepure64-${VERSION}.gz"
 EXTRACT_DIR="/tmp/tc-rootfs-${VERSION}"
 PKGS_DIR="/tmp/tc-packages-${VERSION}"
+MERGED_DIR="/tmp/tc-merged-${VERSION}"
 
 echo "==> Building Docker base image ${IMAGE_TAG}"
 
@@ -38,7 +39,7 @@ echo "==> Importing rootfs as ${INIT_TAG}..."
 chmod -R u+r "${EXTRACT_DIR}"
 tar -C "${EXTRACT_DIR}" -c . | docker import - "${INIT_TAG}"
 
-# Download packages using tce-load (only -w/download works without squashfs mount support)
+# Download packages using tce-load (download-only flag works without squashfs support)
 echo "==> Downloading build packages via TinyCore tce-load..."
 echo "    (bash, libisoburn, git, gcc, compiletc + all dependencies)"
 mkdir -p "${PKGS_DIR}"
@@ -62,27 +63,31 @@ docker exec "${CID}" /bin/sh -c 'cp /tmp/tce/optional/*.tcz /pkgs/'
 docker rm -f "${CID}"
 docker rmi "${INIT_TAG}" 2>/dev/null || true
 
-# Extract packages into rootfs using Alpine's unsquashfs
-echo "==> Extracting packages into rootfs via Alpine unsquashfs..."
+# Merge: start from the basic rootfs, then overlay extracted package files.
+# Alpine extracts each .tcz squashfs and pipes the result as a tar stream.
+# macOS unpacks that tar into MERGED_DIR alongside the base rootfs files.
+echo "==> Merging rootfs with extracted packages..."
+rm -rf "${MERGED_DIR}"
+cp -a "${EXTRACT_DIR}/." "${MERGED_DIR}/"
+
 docker run --rm \
     -v "${PKGS_DIR}:/pkgs:ro" \
-    -v "${EXTRACT_DIR}:/rootfs" \
     alpine:latest /bin/sh -c '
         apk add -q squashfs-tools 2>/dev/null
+        mkdir -p /rootfs
         for pkg in /pkgs/*.tcz; do
-            printf "  extracting %s\n" "$(basename $pkg)"
+            printf "  extracting %s\n" "$(basename "$pkg")" >&2
             unsquashfs -f -d /rootfs "$pkg" > /dev/null 2>&1 || true
         done
-        find /rootfs -not -readable -exec chmod a+r {} \; 2>/dev/null || true
-    '
+        tar -C /rootfs -c .
+    ' | tar -C "${MERGED_DIR}" -xp 2>/dev/null || true
 
-# Make all files readable from the macOS host before tarring
-chmod -R u+r "${EXTRACT_DIR}" 2>/dev/null || true
+chmod -R u+r "${MERGED_DIR}" 2>/dev/null || true
 
 echo "==> Importing combined rootfs as ${IMAGE_TAG}..."
-tar -C "${EXTRACT_DIR}" -c . | docker import - "${IMAGE_TAG}"
+tar -C "${MERGED_DIR}" -c . | docker import - "${IMAGE_TAG}"
 
 echo "==> Cleaning up..."
-rm -rf "${EXTRACT_DIR}" "${ROOTFS_FILE}" "${COREPURE_FILE}" "${PKGS_DIR}"
+rm -rf "${EXTRACT_DIR}" "${MERGED_DIR}" "${ROOTFS_FILE}" "${COREPURE_FILE}" "${PKGS_DIR}"
 
 echo "==> Done. Base image ${IMAGE_TAG} is ready."
