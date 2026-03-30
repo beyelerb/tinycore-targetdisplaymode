@@ -13,7 +13,8 @@ RUN chown 0:0 /etc/sudoers && \
     chown -R tc:staff /tmp/tce /home/tc && \
     echo "http://tinycorelinux.net" > /opt/tcemirror && \
     ln -sf /tmp/tce /etc/sysconfig/tcedir && \
-    ldconfig 2>/dev/null || true
+    ldconfig 2>/dev/null || true && \
+    ln -sf /usr/local/bin/bash /bin/bash
 
 # Verify build tools pre-installed by build-base-image.sh are accessible
 RUN bash --version > /dev/null && \
