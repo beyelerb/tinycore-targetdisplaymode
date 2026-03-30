@@ -65,38 +65,30 @@ docker rmi "${INIT_TAG}" 2>/dev/null || true
 PKG_COUNT=$(ls "${PKGS_DIR}"/*.tcz 2>/dev/null | wc -l | tr -d ' ')
 echo "==> ${PKG_COUNT} packages downloaded to ${PKGS_DIR}"
 
-# Verify Alpine can see the packages via volume mount
-ALPINE_PKG_COUNT=$(docker run --rm -v "${PKGS_DIR}:/pkgs:ro" alpine:latest \
-    sh -c 'ls /pkgs/*.tcz 2>/dev/null | wc -l' | tr -d ' ')
-echo "==> Alpine sees ${ALPINE_PKG_COUNT} packages via volume mount"
+# Podman on macOS does not share /tmp paths via -v volume mounts.
+# Instead, bake the packages into a temporary Alpine extractor image via
+# docker build (build context is tarred and transferred, bypassing the issue).
+EXTRACTOR_TAG="${IMAGE_TAG}-extractor"
+cat > "${PKGS_DIR}/Dockerfile" << 'DOCKERFILE'
+FROM alpine:latest
+RUN apk add -q squashfs-tools
+COPY *.tcz /packages/
+RUN mkdir -p /rootfs && \
+    for pkg in /packages/*.tcz; do \
+        unsquashfs -f -d /rootfs "$pkg" > /dev/null 2>&1 || true; \
+    done
+DOCKERFILE
+
+echo "==> Building extractor image (Alpine + packages)..."
+docker build -q -t "${EXTRACTOR_TAG}" "${PKGS_DIR}/"
 
 # Merge: start from the basic rootfs, then overlay extracted package files.
-# Alpine extracts each .tcz squashfs and pipes the result as a tar stream.
-# macOS unpacks that tar into MERGED_DIR alongside the base rootfs files.
 echo "==> Merging rootfs with extracted packages..."
 rm -rf "${MERGED_DIR}"
 cp -a "${EXTRACT_DIR}/." "${MERGED_DIR}/"
-
-docker run --rm \
-    -v "${PKGS_DIR}:/pkgs:ro" \
-    alpine:latest /bin/sh -c '
-        apk add -q squashfs-tools 2>/dev/null
-        mkdir -p /rootfs
-        for pkg in /pkgs/*.tcz; do
-            printf "  extracting %s\n" "$(basename "$pkg")" >&2
-            unsquashfs -f -d /rootfs "$pkg" > /dev/null 2>&1 || true
-        done
-        tar -C /rootfs -c .
-    ' | tar -C "${MERGED_DIR}" -x 2>/dev/null || true
-
-BASH_PATH="${MERGED_DIR}/usr/local/bin/bash"
-if [ -f "${BASH_PATH}" ]; then
-    echo "==> bash found at ${BASH_PATH}"
-else
-    echo "==> ERROR: bash not found in merged rootfs"
-    echo "    Contents of ${MERGED_DIR}/usr/local/bin/:"
-    ls "${MERGED_DIR}/usr/local/bin/" 2>/dev/null | head -10 || echo "    (directory missing)"
-fi
+docker run --rm "${EXTRACTOR_TAG}" tar -C /rootfs -c . \
+    | tar -C "${MERGED_DIR}" -x 2>/dev/null || true
+docker rmi "${EXTRACTOR_TAG}" 2>/dev/null || true
 
 chmod -R u+r "${MERGED_DIR}" 2>/dev/null || true
 
