@@ -43,9 +43,7 @@ tar -C "${EXTRACT_DIR}" -c . | docker import - "${INIT_TAG}"
 echo "==> Downloading build packages via TinyCore tce-load..."
 echo "    (bash, libisoburn, git, gcc, compiletc + all dependencies)"
 mkdir -p "${PKGS_DIR}"
-CID=$(docker run -d --privileged \
-    -v "${PKGS_DIR}:/pkgs" \
-    "${INIT_TAG}" /bin/sh -c 'sleep 3600')
+CID=$(docker run -d --privileged "${INIT_TAG}" /bin/sh -c 'sleep 3600')
 
 docker exec "${CID}" /bin/sh -c '
 set -e
@@ -59,7 +57,8 @@ echo "http://tinycorelinux.net" > /opt/tcemirror
 docker exec -u tc "${CID}" /bin/sh -c '
 tce-load -w bash.tcz libisoburn.tcz git.tcz gcc.tcz compiletc.tcz
 '
-docker exec "${CID}" /bin/sh -c 'cp /tmp/tce/optional/*.tcz /pkgs/'
+# Use docker cp instead of volume mount write (volume writes silently fail on macOS/Podman)
+docker cp "${CID}:/tmp/tce/optional/." "${PKGS_DIR}/"
 docker rm -f "${CID}"
 docker rmi "${INIT_TAG}" 2>/dev/null || true
 
