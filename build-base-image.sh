@@ -63,6 +63,14 @@ docker exec "${CID}" /bin/sh -c 'cp /tmp/tce/optional/*.tcz /pkgs/'
 docker rm -f "${CID}"
 docker rmi "${INIT_TAG}" 2>/dev/null || true
 
+PKG_COUNT=$(ls "${PKGS_DIR}"/*.tcz 2>/dev/null | wc -l | tr -d ' ')
+echo "==> ${PKG_COUNT} packages downloaded to ${PKGS_DIR}"
+
+# Verify Alpine can see the packages via volume mount
+ALPINE_PKG_COUNT=$(docker run --rm -v "${PKGS_DIR}:/pkgs:ro" alpine:latest \
+    sh -c 'ls /pkgs/*.tcz 2>/dev/null | wc -l' | tr -d ' ')
+echo "==> Alpine sees ${ALPINE_PKG_COUNT} packages via volume mount"
+
 # Merge: start from the basic rootfs, then overlay extracted package files.
 # Alpine extracts each .tcz squashfs and pipes the result as a tar stream.
 # macOS unpacks that tar into MERGED_DIR alongside the base rootfs files.
@@ -80,7 +88,16 @@ docker run --rm \
             unsquashfs -f -d /rootfs "$pkg" > /dev/null 2>&1 || true
         done
         tar -C /rootfs -c .
-    ' | tar -C "${MERGED_DIR}" -xp 2>/dev/null || true
+    ' | tar -C "${MERGED_DIR}" -x 2>/dev/null || true
+
+BASH_PATH="${MERGED_DIR}/usr/local/bin/bash"
+if [ -f "${BASH_PATH}" ]; then
+    echo "==> bash found at ${BASH_PATH}"
+else
+    echo "==> ERROR: bash not found in merged rootfs"
+    echo "    Contents of ${MERGED_DIR}/usr/local/bin/:"
+    ls "${MERGED_DIR}/usr/local/bin/" 2>/dev/null | head -10 || echo "    (directory missing)"
+fi
 
 chmod -R u+r "${MERGED_DIR}" 2>/dev/null || true
 
