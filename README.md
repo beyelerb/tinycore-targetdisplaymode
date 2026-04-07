@@ -39,85 +39,88 @@ This repository packages a bunch of scripts and other modifications, a `Dockerfi
 not only building a package file for Tiny Core Linux, but to also assemble everything together for a bootable USB thumb drive,
 that you can boot off your vintage Mac.
 
-The bootable image is extended in the following ways:
+The bootable image is based on **TinyCorePure64 17.0 (x86_64)** and is extended in the following ways:
 
- * a new package called `tdm` ("target display mode"), containg a custom compiled version of `smc_util`, is included
+ * a new package called `tdm` ("target display mode"), containing a custom compiled version of `smc_util`, is included
  * helper scripts are included in this package:
    * `/etc/init.d/services/tdm` as an init-style script, which accepts `start|stop|restart` keywords
    * `/usr/bin/tdm_on`, `/usr/bin/tdm_off` and `/usr/bin/tdm_toggle`, which can be used for turning Target Display Mode on/off or toggling it between states.
  * an automated startup trigger is installed at `/usr/local/tce.installed/tdm`, to switch Target Display Mode automatically on
  * `/etc/inittab` is modified to run `tdm_toggle`, `tdm_on` and `tdm_off` and `tdm_shutdown` scripts via the virtual terminals 2-5 (see also hot keys, further below)
- * the `hid-apple` kernel module is loaded at boot with `fnmode=2`, ensuring Apple keyboards are properly recognized and F1–F12 act as standard function keys
+ * the `hid-apple` and `hid-appleir` kernel modules are loaded at boot with `fnmode=2`, ensuring Apple keyboards (wired USB and wireless via USB receiver) are properly recognized and F1–F12 act as standard function keys
 
 
-## Staging a Docker container as a Build Environment
+## Building
 
-I based this off Docker, to stage the build environment for the Tiny Core Linux extension inside a container environment.
+The build uses Docker (or Podman) and has two steps: bootstrapping a local base image, then building and running the build container.
 
-### Prerequisites: Build the local base image (one-time step)
+### Step 1 — Bootstrap the local base image (one-time)
 
-The build environment uses a local x86_64 TinyCorePure64 Docker image that you create once from TinyCore's published `rootfs64.gz`. This step must be repeated when upgrading to a new TinyCore version.
+No pre-built x86_64 TinyCore Docker image exists on Docker Hub, so one is built locally from TinyCore's official distribution files. This only needs to be repeated when upgrading to a new TinyCore version.
 
 ```
-git clone https://github.com/gpdm/tinycore-targetdisplaymode.git
+git clone https://github.com/beyelerb/tinycore-targetdisplaymode.git
 cd tinycore-targetdisplaymode
 ./build-base-image.sh
 ```
 
-This downloads `rootfs64.gz` from tinycorelinux.net, extracts it, and imports it into Docker as `tcl-core-x86_64:17.0`. To build a different version, pass the version as an argument: `./build-base-image.sh 18.0`.
+What this does:
 
-### Build the container image
+1. Downloads `rootfs64.gz` and `corepure64.gz` from tinycorelinux.net and extracts them into a combined filesystem
+2. Imports that as an intermediate image, then uses a privileged TinyCore container to download the required build tool packages (`bash`, `git`, `gcc`, `compiletc`, `libisoburn`, `squashfs-tools` and all their dependencies) via `tce-load`
+3. Uses an Alpine container with `unsquashfs` to extract all packages into the rootfs
+4. Imports the combined filesystem as `localhost/tcl-core-x86_64:17.0`
+
+To build for a different TinyCore version: `./build-base-image.sh 18.0`
+
+**Platform notes:**
+- Requires `wget` on the host
+- Tested on macOS with Podman. On macOS, Podman must be running (`podman machine start`) before running this script
+- On Linux with Docker, the script works as-is
+
+### Step 2 — Build the container image
 
 ```
-sudo docker build . -t tcbuild
+docker build . -t tcbuild
 ```
 
-
-## Run the build inside the container
-
-Now that your container was built, create an `output` directory, then simply run the container.
+### Step 3 — Run the build
 
 ```
-sudo docker run -it --rm -v `pwd`/output:/tmp/output tcbuild
+docker run -it --rm -v $(pwd)/output:/tmp/output tcbuild
 ```
 
-This will run all necessary steps to
+This runs all necessary build stages inside the container:
 
- * download the [smc_util](https://github.com/floe/smc_util/) source and compile it
- * download [Tiny Core Linux](http://tinycorelinux.net/) release 13 ISO
- * package the smc_util as a TCE extension package
- * restage the Tiny Core Linux ISO file into a custom respin
- * copy all files with the necessary structure to the `output` directory
+| Stage | What happens |
+|-------|-------------|
+| 1 | Clone and compile [smc_util](https://github.com/floe/smc_util/) from source |
+| 2 | Download TinyCorePure64 17.0 ISO and extract it |
+| 3 | Package `smc_util` as a `tdm.tcz` TinyCore extension |
+| 4 | Download the `cpupower` TinyCore extension |
+| 4b | Extract `hid-apple.ko` and `hid-appleir.ko` from the x86_64 kernel modules archive and package them as `hid-apple.tcz` |
+| 5 | Assemble the final bootable ISO with all extensions |
 
-Pay close attention to the build process. It's verbose, but there's not much error checking,
-so it may fail at any time in the future (i.e. outdated download links, and such).
-
-If it succeeds, you should have something like this in your `output` directory:
+If it succeeds, the `output` directory will contain:
 
 ```
 output/
-output/boot
-output/boot/grub
-output/boot/grub/README.MD
 output/boot/grub/grub.cfg
-output/efi
-output/efi/boot
 output/efi/boot/bootX64.efi
-output/boot-isos
 output/boot-isos/Core-remastered.iso
 ```
 
-## Run the build with a different TinyCore ISO file
+### Using a different TinyCore ISO
 
-By default, `http://tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso` is downloaded.
-
-You may use a different release by passing a `TC_ISO_URL` environment variable:
+The ISO URL is configurable via environment variable:
 
 ```
-sudo docker run -it --rm -v `pwd`/output:/tmp/output \
-	-e TC_ISO_URL=http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso \
-	tcbuild
+docker run -it --rm -v $(pwd)/output:/tmp/output \
+    -e TC_ISO_URL=http://www.tinycorelinux.net/17.x/x86_64/release/TinyCorePure64-17.0.iso \
+    tcbuild
 ```
+
+The URL must point to a `tinycorelinux.net` ISO. The modules archive URL is derived automatically from the ISO URL.
 
 ## Creating a Bootable USB thumb drive
 

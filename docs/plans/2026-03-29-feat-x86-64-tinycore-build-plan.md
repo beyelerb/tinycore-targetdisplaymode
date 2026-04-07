@@ -72,10 +72,10 @@ This already accepts `TinyCorePure64-17.0.iso` — no change needed.
 ## Acceptance Criteria
 
 - [x] `build-base-image.sh` exists, is executable, and creates `tcl-core-x86_64:17.0` local Docker image
-- [ ] `docker build . -t tcbuild` succeeds using the new base image
+- [x] `docker build . -t tcbuild` succeeds using the new base image
 - [ ] `docker run -it --rm -v pwd/output:/tmp/output tcbuild` completes all 6 stages without error
 - [ ] Stage 4b correctly extracts `hid-apple.ko.gz` from the x86_64 `modules.gz`
-- [ ] Kernel version string in the built image is `6.18.2-tinycore64` (or current Pure64 version)
+- [ ] Kernel version string in the built image is `6.x-tinycore64` (current Pure64 version)
 - [ ] Output ISO boots on a vintage iMac and reaches TDM
 - [ ] `file output/boot-isos/Core-remastered.iso` reports x86-64 boot record (or equivalent)
 - [x] README accurately describes the two-step build process
