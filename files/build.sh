@@ -51,6 +51,25 @@ cp ${smcutil_dir}/SmcDumpKey ${tdm_dir}/usr/bin/
 chmod 755 ${tdm_dir}/usr/bin/* ${tdm_dir}/etc/init.d/services/tdm ${tdm_dir}/usr/local/tce.installed/tdm
 
 mkdir -p ${tinycore_dir}/Core-current/cde/optional
+
+# copy SSH authorized_keys into tdm package if provided
+if [ -s /tmp/build/ssh/authorized_keys ]; then
+    mkdir -p ${tdm_dir}/home/tc/.ssh
+    cp /tmp/build/ssh/authorized_keys ${tdm_dir}/home/tc/.ssh/authorized_keys
+    chmod 700 ${tdm_dir}/home/tc/.ssh
+    chmod 600 ${tdm_dir}/home/tc/.ssh/authorized_keys
+    printf "SSH authorized_keys included in tdm.tcz\n"
+else
+    printf "WARNING: files/ssh/authorized_keys is absent or empty — sshd will run but no keys are authorized\n"
+fi
+
+# warn if host keys are missing (user forgot to run generate-ssh-keys.sh)
+if [ ! -f ${tdm_dir}/etc/ssh/ssh_host_ed25519_key ]; then
+    printf "WARNING: SSH host keys not found in ${tdm_dir}/etc/ssh/\n"
+    printf "  Run ./generate-ssh-keys.sh before building to get a stable host fingerprint.\n"
+    printf "  Without host keys, openssh will generate ephemeral keys at each boot.\n"
+fi
+
 mksquashfs ${tdm_dir} ${tinycore_dir}/Core-current/cde/optional/tdm.tcz
 echo tdm.tcz >> ${tinycore_dir}/Core-current/cde/onboot.lst
 
@@ -102,6 +121,20 @@ echo "options hid-apple fnmode=2" > ${HID_PKG_DIR}/etc/modprobe.d/hid-apple.conf
 mksquashfs ${HID_PKG_DIR} ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
 echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
 printf "hid-apple.tcz packaged successfully (hid-apple + hid-appleir)\n"
+
+
+# acquire openssh extension for remote access over ethernet
+printf "## STAGE 4c: Acquire openssh\n"
+
+if sudo -u tc tce-load -w openssh 2>/dev/null && \
+   [ -f /tmp/tce/optional/openssh.tcz ]; then
+    cp /tmp/tce/optional/openssh.tcz \
+       ${tinycore_dir}/Core-current/cde/optional/
+    echo "openssh.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
+    printf "openssh.tcz added to image\n"
+else
+    printf "WARNING: could not download openssh.tcz — SSH will not be available at boot\n"
+fi
 
 
 # assemble the output files

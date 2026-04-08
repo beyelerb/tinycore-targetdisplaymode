@@ -90,8 +90,9 @@ This runs all necessary build stages inside the container:
 |-------|-------------|
 | 1 | Clone and compile [smc_util](https://github.com/floe/smc_util/) from source |
 | 2 | Download TinyCorePure64 17.0 ISO and extract it |
-| 3 | Package `smc_util` as a `tdm.tcz` TinyCore extension |
+| 3 | Package `smc_util` and SSH config as a `tdm.tcz` TinyCore extension |
 | 4b | Extract `hid-apple.ko` and `hid-appleir.ko` from the x86_64 kernel modules archive and package them as `hid-apple.tcz` |
+| 4c | Download `openssh.tcz` from the TinyCore package repo |
 | 5 | Assemble the final bootable ISO with all extensions |
 
 If it succeeds, the `output` directory will contain:
@@ -226,6 +227,47 @@ Behold, you can use shortcuts to switch between display modes!
 | CTRL+ALT+Fn+F5, press ENTER | Shutdown and power-off the iMac |
 
 > **Note:** The `Fn` key is required on Apple keyboards because `fnmode=2` maps F1–F12 to standard function keys (media keys require `Fn`). On non-Apple keyboards, omit `Fn`.
+
+
+## Remote Access (SSH)
+
+The image includes an SSH server (`openssh`) for Ethernet-based remote access while the iMac is running in Target Display Mode. This lets you connect to a shell, inspect state, or control TDM without a physical keyboard.
+
+Authentication is public-key only — no password is set for the `tc` user.
+
+### Setup (one-time, before building)
+
+**1. Generate stable host keys:**
+
+```
+./generate-ssh-keys.sh
+```
+
+This writes `ssh_host_ed25519_key` and `ssh_host_rsa_key` into `files/tdm/etc/ssh/`. They are baked into the ISO so your SSH client sees the same host fingerprint on every boot. Private keys are gitignored; run the script again to rotate them.
+
+**2. Add your public key:**
+
+Open `files/ssh/authorized_keys` and paste your public key:
+
+```
+ssh-ed25519 AAAA... user@host
+```
+
+Then rebuild the ISO — the key is embedded in the image at build time.
+
+### Connecting
+
+The iMac gets an IP via DHCP on its Ethernet interface. Find the address from your router's DHCP table or by running `arp -a` on the connected machine.
+
+```
+ssh tc@<imac-ip>
+```
+
+### Notes
+
+- If `files/ssh/authorized_keys` is empty at build time, sshd still starts but no key is authorized (login will fail). Add a key and rebuild.
+- If `generate-ssh-keys.sh` was not run before building, openssh generates ephemeral host keys at each boot — your SSH client will warn about a changed host key on every reboot.
+- Root login and password authentication are disabled.
 
 
 ## Customizations
