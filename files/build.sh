@@ -29,7 +29,7 @@ echo ${TC_ISO_URL} | grep -Ee '^https?://(www\.)?tinycorelinux\.net/[0-9]+.*/.*\
 
 # build SMC utility from https://github.com/floe/smc_util
 printf "## STAGE 1: build smc_util\n"
-mkdir -p ${build_dir} 
+mkdir -p ${build_dir}
 git clone https://github.com/floe/smc_util.git ${smcutil_dir}
 cd ${smcutil_dir}
 cc -O2 -o SmcDumpKey SmcDumpKey.c -Wall
@@ -42,12 +42,12 @@ wget "${TC_ISO_URL}" -O ${tinycore_dir}/Core-current.iso
 xorriso -osirrox on -indev ${tinycore_dir}/Core-current.iso -extract / ${tinycore_dir}/Core-current
 
 
-# package it
+# package it
 printf "## STAGE 3: Make TDM tce package\n"
-## NOTE: ${tdm_dir} and substructure is included when container is staged
+## NOTE: ${tdm_dir} and substructure is included when container is staged
 ## 	 the mkdir's below are thus NOT necessary
 ## mkdir -p ${tdm_dir}/usr/bin/ ${tdm_dir}/etc/init.d/services/
-cp ${smcutil_dir}/SmcDumpKey ${tdm_dir}/usr/bin/ 
+cp ${smcutil_dir}/SmcDumpKey ${tdm_dir}/usr/bin/
 chmod 755 ${tdm_dir}/usr/bin/* ${tdm_dir}/etc/init.d/services/tdm ${tdm_dir}/usr/local/tce.installed/tdm
 
 mkdir -p ${tinycore_dir}/Core-current/cde/optional
@@ -55,20 +55,15 @@ mksquashfs ${tdm_dir} ${tinycore_dir}/Core-current/cde/optional/tdm.tcz
 echo tdm.tcz >> ${tinycore_dir}/Core-current/cde/onboot.lst
 
 
-# get extra packages
-printf "## STAGE 4: Get extra packages\n"
-sudo -u tc tce-load -w cpupower
-find /tmp/tce/optional -type f -exec cp {} ${tinycore_dir}/Core-current/cde/optional/ \;
-find ${tinycore_dir}/Core-current/cde/optional/ -name cpupower.tcz | grep . || exit 1
-cat >> ${tinycore_dir}/Core-current/cde/onboot.lst <<EOF
-cpupower.tcz
-EOF
-
-
 # acquire Apple HID modules from TinyCore's modules archive
 printf "## STAGE 4b: Acquire Apple HID modules\n"
 
-TC_MODULES_URL="$(dirname ${TC_ISO_URL})/distribution_files/modules.gz"
+# x86_64 uses modules64.gz; x86 uses modules.gz
+case "${TC_ISO_URL}" in
+    *x86_64*) TC_MODULES_FILE="modules64.gz" ;;
+    *)         TC_MODULES_FILE="modules.gz"   ;;
+esac
+TC_MODULES_URL="$(dirname ${TC_ISO_URL})/distribution_files/${TC_MODULES_FILE}"
 HID_EXTRACT_DIR=/tmp/hid-apple-extract
 HID_PKG_DIR=/tmp/hid-apple-pkg
 
