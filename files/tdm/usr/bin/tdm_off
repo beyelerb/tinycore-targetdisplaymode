@@ -9,3 +9,5 @@ sleep 1
 /usr/bin/sudo /usr/bin/SmcDumpKey MVMR 2
 sleep 2
 printf "disabled.\n"
+# switch to tty2 (text console) to wake up the display without entering X
+chvt 2

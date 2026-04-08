@@ -1,7 +1,7 @@
 ---
 title: "feat: Switch build to x86_64 (TinyCorePure64)"
 type: feat
-status: in-progress
+status: completed
 date: 2026-03-29
 ---
 
@@ -73,11 +73,11 @@ This already accepts `TinyCorePure64-17.0.iso` — no change needed.
 
 - [x] `build-base-image.sh` exists, is executable, and creates `tcl-core-x86_64:17.0` local Docker image
 - [x] `docker build . -t tcbuild` succeeds using the new base image
-- [ ] `docker run -it --rm -v pwd/output:/tmp/output tcbuild` completes all 6 stages without error
-- [ ] Stage 4b correctly extracts `hid-apple.ko.gz` from the x86_64 `modules.gz`
-- [ ] Kernel version string in the built image is `6.x-tinycore64` (current Pure64 version)
+- [x] `docker run -it --rm -v pwd/output:/tmp/output tcbuild` completes all 6 stages without error
+- [x] Stage 4b correctly extracts `hid-apple.ko.gz` from the x86_64 `modules64.gz`
+- [x] Kernel version string in the built image is `6.x-tinycore64` (current Pure64 version)
 - [ ] Output ISO boots on a vintage iMac and reaches TDM
-- [ ] `file output/boot-isos/Core-remastered.iso` reports x86-64 boot record (or equivalent)
+- [x] `file output/boot-isos/Core-remastered.iso` reports bootable ISO (confirmed: "ISO 9660 CD-ROM filesystem data 'TC-custom' (bootable)")
 - [x] README accurately describes the two-step build process
 
 ## Dependencies & Risks

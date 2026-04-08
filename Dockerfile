@@ -16,6 +16,7 @@ RUN chown 0:0 /etc/sudoers && \
     ldconfig 2>/dev/null || true && \
     ln -sf /usr/local/bin/bash /bin/bash && \
     for s in /usr/local/tce.installed/*; do [ -x "$s" ] && "$s" 2>/dev/null || true; done && \
+    sed -i 's/checknotroot/true/' /usr/bin/tce-load && \
     find / -name "._*" -delete 2>/dev/null || true && \
     mkdir -p /usr/local/etc/ssl/certs && \
     find /usr/local/share/ca-certificates -name "*.crt" -not -name "._*" 2>/dev/null \
