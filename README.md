@@ -1,9 +1,3 @@
-################################################################
-
-This project is not maintained anymore - left for reference only
-
-################################################################
-
 # Tiny Core Linux Extension for Vintage Mac Target Display Mode
 
 Well, if you ended up here, you're propably running Linux on a Vintage Mac and trying to enable Target Display Mode.
@@ -97,7 +91,6 @@ This runs all necessary build stages inside the container:
 | 1 | Clone and compile [smc_util](https://github.com/floe/smc_util/) from source |
 | 2 | Download TinyCorePure64 17.0 ISO and extract it |
 | 3 | Package `smc_util` as a `tdm.tcz` TinyCore extension |
-| 4 | Download the `cpupower` TinyCore extension |
 | 4b | Extract `hid-apple.ko` and `hid-appleir.ko` from the x86_64 kernel modules archive and package them as `hid-apple.tcz` |
 | 5 | Assemble the final bootable ISO with all extensions |
 
@@ -226,11 +219,13 @@ Behold, you can use shortcuts to switch between display modes!
 
 | Keystroke | Description |
 | --- | --- |
-| CTRL+ALT+F1, press <ENTER> | Bring up the system default console (will only be available if Target Display Mode was disabled) |
-| CTRL+ALT+F2, press <ENTER> | Toggle between Target Display Mode and Local Display Mode. This is most similar in behaviour to Apples CMD+F2 key stroke. |
-| CTRL+ALT+F3, press <ENTER> | This will turn on Target Display Mode, and your iMac should now act as a secondary display to your other Mac. |
-| CTRL+ALT+F4, press <ENTER> | This will turn off Target Display Mode, and your iMac should show the local Linux console. |
-| CTRL+ALT+F5, press <ENTER> | Shutdown and power-off the iMac |
+| CTRL+ALT+Fn+F1, press ENTER | Bring up the system default console (only available when Target Display Mode is disabled) |
+| CTRL+ALT+Fn+F2, press ENTER | Toggle between Target Display Mode and Local Display Mode (similar to Apple's CMD+F2) |
+| CTRL+ALT+Fn+F3, press ENTER | Turn Target Display Mode ON — iMac acts as a secondary display |
+| CTRL+ALT+Fn+F4, press ENTER | Turn Target Display Mode OFF — iMac shows the local Linux console |
+| CTRL+ALT+Fn+F5, press ENTER | Shutdown and power-off the iMac |
+
+> **Note:** The `Fn` key is required on Apple keyboards because `fnmode=2` maps F1–F12 to standard function keys (media keys require `Fn`). On non-Apple keyboards, omit `Fn`.
 
 
 ## Customizations
@@ -359,13 +354,12 @@ A monitor is way better at this, especially if you leave it on permanently!
 
 ### Can't power consumption be furtherly reduced?
 
-The iMac is already quiet efficient at conserving power.
-Nevertheless, `cpupower` was incorporate to force the CPU into a low-frequency power conservation mode.
+The iMac is already quiet efficient at conserving power. Nevertheless, two measures are taken when Target Display Mode starts:
 
-Also, `hdparm` is run to put the system hard drive `/dev/sda` into sleep mode.
+- **CPU throttling:** all CPU cores are set to the `powersave` governor at minimum frequency via the kernel's `cpufreq` sysfs interface — no external package required
+- **Hard drive spindown:** `hdparm -Y /dev/sda` is run 30 seconds after boot (after kernel probing settles) to spin down the internal HDD. Since TinyCore runs entirely from RAM and boots from USB, the drive stays spun down indefinitely
 
-According to my measurements on the late-2009 iMac, it doesn't decrease the power conspumption a lot.
-I saw a very minimal reduction of ~8 Watts.
+According to measurements on the late-2009 iMac, power savings are minimal (~8 Watts), but it does reduce heat and drive wear on a system left on 24/7.
 
 
 ### Can I connect a Windows Machine to the iMac in Target Display Mode?
