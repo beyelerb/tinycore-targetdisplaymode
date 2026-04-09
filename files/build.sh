@@ -54,10 +54,8 @@ mkdir -p ${tinycore_dir}/Core-current/cde/optional
 
 # copy SSH authorized_keys into tdm package if provided
 if [ -s /tmp/build/ssh/authorized_keys ]; then
-    mkdir -p ${tdm_dir}/home/tc/.ssh
-    cp /tmp/build/ssh/authorized_keys ${tdm_dir}/home/tc/.ssh/authorized_keys
-    chmod 700 ${tdm_dir}/home/tc/.ssh
-    chmod 600 ${tdm_dir}/home/tc/.ssh/authorized_keys
+    cp /tmp/build/ssh/authorized_keys ${tdm_dir}/usr/local/etc/ssh/authorized_keys
+    chmod 644 ${tdm_dir}/usr/local/etc/ssh/authorized_keys
     printf "SSH authorized_keys included in tdm.tcz\n"
 else
     printf "WARNING: files/ssh/authorized_keys is absent or empty — sshd will run but no keys are authorized\n"

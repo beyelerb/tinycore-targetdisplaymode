@@ -16,6 +16,15 @@ sed -ibak -e 's/^waitforX.*/waitforX \|\| exit/g' /home/tc/.xsession
 # include tdm_help with .profile file
 echo /usr/bin/tdm_help >> /home/tc/.profile
 
+# copy authorized_keys from read-only squashfs to writable tmpfs with correct ownership
+if [ -f /usr/local/etc/ssh/authorized_keys ]; then
+    mkdir -p /home/tc/.ssh
+    cp /usr/local/etc/ssh/authorized_keys /home/tc/.ssh/authorized_keys
+    chown -R tc:staff /home/tc/.ssh
+    chmod 700 /home/tc/.ssh
+    chmod 600 /home/tc/.ssh/authorized_keys
+fi
+
 # rebuild module index so modprobe can resolve newly added .ko files via modules.dep
 depmod $(uname -r) 2>/dev/null || true
 
