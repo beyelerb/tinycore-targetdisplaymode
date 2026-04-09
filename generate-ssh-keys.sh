@@ -7,7 +7,7 @@
 # Private keys are gitignored; public keys are committed.
 set -e
 
-KEYDIR="$(dirname "$0")/files/tdm/etc/ssh"
+KEYDIR="$(dirname "$0")/files/tdm/usr/local/etc/ssh"
 mkdir -p "${KEYDIR}"
 
 ssh-keygen -t ed25519 -f "${KEYDIR}/ssh_host_ed25519_key" -N "" -C "" -q

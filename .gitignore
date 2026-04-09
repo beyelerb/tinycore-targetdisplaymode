@@ -1,2 +1,2 @@
 output/**
-files/tdm/etc/ssh/ssh_host_*_key
+files/tdm/usr/local/etc/ssh/ssh_host_*_key

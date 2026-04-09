@@ -64,8 +64,8 @@ else
 fi
 
 # warn if host keys are missing (user forgot to run generate-ssh-keys.sh)
-if [ ! -f ${tdm_dir}/etc/ssh/ssh_host_ed25519_key ]; then
-    printf "WARNING: SSH host keys not found in ${tdm_dir}/etc/ssh/\n"
+if [ ! -f ${tdm_dir}/usr/local/etc/ssh/ssh_host_ed25519_key ]; then
+    printf "WARNING: SSH host keys not found in ${tdm_dir}/usr/local/etc/ssh/\n"
     printf "  Run ./generate-ssh-keys.sh before building to get a stable host fingerprint.\n"
     printf "  Without host keys, openssh will generate ephemeral keys at each boot.\n"
 fi
@@ -123,18 +123,25 @@ echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
 printf "hid-apple.tcz packaged successfully (hid-apple + hid-appleir)\n"
 
 
-# acquire openssh extension for remote access over ethernet
+# acquire openssh extension (and its openssl dependency) for remote access over ethernet
 printf "## STAGE 4c: Acquire openssh\n"
 
-if sudo -u tc tce-load -w openssh 2>/dev/null && \
-   [ -f /tmp/tce/optional/openssh.tcz ]; then
-    cp /tmp/tce/optional/openssh.tcz \
-       ${tinycore_dir}/Core-current/cde/optional/
-    echo "openssh.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
-    printf "openssh.tcz added to image\n"
-else
-    printf "WARNING: could not download openssh.tcz — SSH will not be available at boot\n"
-fi
+TC_TCZ_URL="$(dirname $(dirname ${TC_ISO_URL}))/tcz"
+OPENSSH_OK=1
+
+for pkg in openssl openssh; do
+    printf "Downloading ${pkg}.tcz...\n"
+    if wget -q "${TC_TCZ_URL}/${pkg}.tcz" -O ${tinycore_dir}/Core-current/cde/optional/${pkg}.tcz; then
+        echo "${pkg}.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
+        printf "${pkg}.tcz added to image\n"
+    else
+        printf "WARNING: could not download ${pkg}.tcz — SSH will not be available at boot\n"
+        OPENSSH_OK=0
+        break
+    fi
+done
+
+[ "${OPENSSH_OK}" -eq 1 ] && printf "openssh ready\n"
 
 
 # assemble the output files
