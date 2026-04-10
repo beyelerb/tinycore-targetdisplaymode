@@ -57,6 +57,7 @@ nohup sh -c '
   done
   if [ -x /usr/local/sbin/sshd ]; then
     echo "sshd-boot: starting sshd (i=$i)" >> '"$LOG"'
+    mkdir -p /var/lib/sshd && chmod 711 /var/lib/sshd
     /usr/local/sbin/sshd -f /usr/local/etc/ssh/sshd_config
     echo "sshd-boot: sshd exited $?" >> '"$LOG"'
   else
