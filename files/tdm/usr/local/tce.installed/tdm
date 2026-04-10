@@ -38,11 +38,11 @@ killall -HUP init
 
 # start sshd once openssh.tcz finishes loading (it loads after tdm.tcz in onboot.lst)
 ( i=0
-  while [ $i -lt 30 ] && [ ! -x /usr/local/etc/init.d/openssh ]; do
+  while [ $i -lt 30 ] && [ ! -x /usr/local/sbin/sshd ]; do
     sleep 1; i=$((i+1))
   done
-  if [ -x /usr/local/etc/init.d/openssh ]; then
-    /usr/local/etc/init.d/openssh start 2>/dev/null || true
+  if [ -x /usr/local/sbin/sshd ]; then
+    /usr/local/sbin/sshd -f /usr/local/etc/ssh/sshd_config
   else
     echo "WARNING: openssh did not load within 30 seconds — sshd not started" | tee /dev/console
   fi
