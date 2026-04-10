@@ -36,4 +36,16 @@ echo 2 > /sys/module/hid_apple/parameters/fnmode 2>/dev/null || true
 
 killall -HUP init
 
+# start sshd once openssh.tcz finishes loading (it loads after tdm.tcz in onboot.lst)
+( i=0
+  while [ $i -lt 30 ] && [ ! -x /usr/local/etc/init.d/openssh ]; do
+    sleep 1; i=$((i+1))
+  done
+  if [ -x /usr/local/etc/init.d/openssh ]; then
+    /usr/local/etc/init.d/openssh start 2>/dev/null || true
+  else
+    echo "WARNING: openssh did not load within 30 seconds — sshd not started" | tee /dev/console
+  fi
+) &
+
 /etc/init.d/services/tdm start
