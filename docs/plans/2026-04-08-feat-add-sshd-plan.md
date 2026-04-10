@@ -1,7 +1,7 @@
 ---
 title: "feat: Add sshd for remote access while in TDM mode"
 type: feat
-status: active
+status: completed
 date: 2026-04-08
 ---
 
