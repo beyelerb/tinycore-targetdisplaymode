@@ -1,0 +1,4 @@
+# Add your SSH public key here (one per line, ssh-ed25519 or ssh-rsa format).
+# Example:
+# ssh-ed25519 AAAA... user@host
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGZtt9nZDRs+MxIuy7hm64hflWkmMl1kVCDgKrzVTmGN 

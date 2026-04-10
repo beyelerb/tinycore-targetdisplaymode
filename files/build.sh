@@ -51,6 +51,23 @@ cp ${smcutil_dir}/SmcDumpKey ${tdm_dir}/usr/bin/
 chmod 755 ${tdm_dir}/usr/bin/* ${tdm_dir}/etc/init.d/services/tdm ${tdm_dir}/usr/local/tce.installed/tdm
 
 mkdir -p ${tinycore_dir}/Core-current/cde/optional
+
+# copy SSH authorized_keys into tdm package if provided
+if [ -s /tmp/build/ssh/authorized_keys ]; then
+    cp /tmp/build/ssh/authorized_keys ${tdm_dir}/usr/local/etc/ssh/authorized_keys
+    chmod 644 ${tdm_dir}/usr/local/etc/ssh/authorized_keys
+    printf "SSH authorized_keys included in tdm.tcz\n"
+else
+    printf "WARNING: files/ssh/authorized_keys is absent or empty — sshd will run but no keys are authorized\n"
+fi
+
+# warn if host keys are missing (user forgot to run generate-ssh-keys.sh)
+if [ ! -f ${tdm_dir}/usr/local/etc/ssh/ssh_host_ed25519_key ]; then
+    printf "WARNING: SSH host keys not found in ${tdm_dir}/usr/local/etc/ssh/\n"
+    printf "  Run ./generate-ssh-keys.sh before building to get a stable host fingerprint.\n"
+    printf "  Without host keys, openssh will generate ephemeral keys at each boot.\n"
+fi
+
 mksquashfs ${tdm_dir} ${tinycore_dir}/Core-current/cde/optional/tdm.tcz
 echo tdm.tcz >> ${tinycore_dir}/Core-current/cde/onboot.lst
 
@@ -102,6 +119,27 @@ echo "options hid-apple fnmode=2" > ${HID_PKG_DIR}/etc/modprobe.d/hid-apple.conf
 mksquashfs ${HID_PKG_DIR} ${tinycore_dir}/Core-current/cde/optional/hid-apple.tcz
 echo "hid-apple.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
 printf "hid-apple.tcz packaged successfully (hid-apple + hid-appleir)\n"
+
+
+# acquire openssh extension (and its openssl dependency) for remote access over ethernet
+printf "## STAGE 4c: Acquire openssh\n"
+
+TC_TCZ_URL="$(dirname $(dirname ${TC_ISO_URL}))/tcz"
+OPENSSH_OK=1
+
+for pkg in openssl openssh; do
+    printf "Downloading ${pkg}.tcz...\n"
+    if wget -q "${TC_TCZ_URL}/${pkg}.tcz" -O ${tinycore_dir}/Core-current/cde/optional/${pkg}.tcz; then
+        echo "${pkg}.tcz" >> ${tinycore_dir}/Core-current/cde/onboot.lst
+        printf "${pkg}.tcz added to image\n"
+    else
+        printf "WARNING: could not download ${pkg}.tcz — SSH will not be available at boot\n"
+        OPENSSH_OK=0
+        break
+    fi
+done
+
+[ "${OPENSSH_OK}" -eq 1 ] && printf "openssh ready\n"
 
 
 # assemble the output files

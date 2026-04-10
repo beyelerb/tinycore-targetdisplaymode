@@ -16,6 +16,26 @@ sed -ibak -e 's/^waitforX.*/waitforX \|\| exit/g' /home/tc/.xsession
 # include tdm_help with .profile file
 echo /usr/bin/tdm_help >> /home/tc/.profile
 
+# copy SSH host keys and authorized_keys from read-only squashfs to writable tmpfs
+# sshd refuses to use host keys accessed via symlinks into a squashfs mount
+mkdir -p /etc/ssh
+for key in ssh_host_ed25519_key ssh_host_rsa_key; do
+    if [ -f /tmp/tcloop/tdm/usr/local/etc/ssh/${key} ]; then
+        cp /tmp/tcloop/tdm/usr/local/etc/ssh/${key} /etc/ssh/${key}
+        cp /tmp/tcloop/tdm/usr/local/etc/ssh/${key}.pub /etc/ssh/${key}.pub
+        chmod 600 /etc/ssh/${key}
+        chmod 644 /etc/ssh/${key}.pub
+    fi
+done
+
+if [ -f /usr/local/etc/ssh/authorized_keys ]; then
+    mkdir -p /home/tc/.ssh
+    cp /usr/local/etc/ssh/authorized_keys /home/tc/.ssh/authorized_keys
+    chown -R tc:staff /home/tc/.ssh
+    chmod 700 /home/tc/.ssh
+    chmod 600 /home/tc/.ssh/authorized_keys
+fi
+
 # rebuild module index so modprobe can resolve newly added .ko files via modules.dep
 depmod $(uname -r) 2>/dev/null || true
 
@@ -26,5 +46,19 @@ modprobe hid-appleir 2>/dev/null || true
 echo 2 > /sys/module/hid_apple/parameters/fnmode 2>/dev/null || true
 
 killall -HUP init
+
+# start sshd once openssh.tcz finishes loading (it loads after tdm.tcz in onboot.lst)
+nohup sh -c '
+  i=0
+  while [ $i -lt 30 ] && [ ! -x /usr/local/sbin/sshd ]; do
+    sleep 1; i=$((i+1))
+  done
+  if [ -x /usr/local/sbin/sshd ]; then
+    mkdir -p /var/lib/sshd && chmod 711 /var/lib/sshd
+    /usr/local/sbin/sshd -f /usr/local/etc/ssh/sshd_config
+  else
+    echo "WARNING: openssh did not load within 30 seconds — sshd not started" | tee /dev/console
+  fi
+' </dev/null >/dev/null 2>&1 &
 
 /etc/init.d/services/tdm start
