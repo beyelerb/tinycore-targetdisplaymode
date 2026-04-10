@@ -4,6 +4,6 @@ PubkeyAuthentication yes
 PasswordAuthentication no
 ChallengeResponseAuthentication no
 AuthorizedKeysFile /home/tc/.ssh/authorized_keys
-HostKey /usr/local/etc/ssh/ssh_host_ed25519_key
-HostKey /usr/local/etc/ssh/ssh_host_rsa_key
+HostKey /etc/ssh/ssh_host_ed25519_key
+HostKey /etc/ssh/ssh_host_rsa_key
 Subsystem sftp /usr/local/lib/openssh/sftp-server
